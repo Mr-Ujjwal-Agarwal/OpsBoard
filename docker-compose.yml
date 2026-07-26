@@ -1,0 +1,88 @@
+name: opsboard
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: opsboard-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-opsboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opsboard}
+      POSTGRES_DB: ${POSTGRES_DB:-opsboard}
+    ports:
+      - "${POSTGRES_EXPOSED_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-opsboard} -d ${POSTGRES_DB:-opsboard}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - opsboard-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: opsboard-backend
+    restart: unless-stopped
+    environment:
+      APP_NAME: OpsBoard API
+      APP_VERSION: 1.0.0
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      API_PREFIX: /api
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      POSTGRES_USER: ${POSTGRES_USER:-opsboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opsboard}
+      POSTGRES_DB: ${POSTGRES_DB:-opsboard}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      SEED_DATABASE: ${SEED_DATABASE:-true}
+    ports:
+      - "${BACKEND_EXPOSED_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - opsboard-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    container_name: opsboard-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_EXPOSED_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - opsboard-network
+
+networks:
+  opsboard-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
