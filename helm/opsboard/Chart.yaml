@@ -1,0 +1,27 @@
+apiVersion: v2
+name: opsboard
+description: A production-ready Helm chart for deploying the OpsBoard application on Amazon EKS
+type: application
+
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - devops
+  - kubernetes
+  - helm
+  - aws
+  - eks
+  - fastapi
+  - react
+
+home: https://github.com/Mr-Ujjwal-Agarwal/OpsBoard
+
+maintainers:
+  - name: Ujjwal Agarwal
+
+sources:
+  - https://github.com/Mr-Ujjwal-Agarwal/OpsBoard
+
+annotations:
+  category: DevOps
