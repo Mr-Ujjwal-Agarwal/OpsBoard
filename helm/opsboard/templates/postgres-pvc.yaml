@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+
+metadata:
+
+  name: opsboard-postgres-pvc
+
+  namespace: {{ .Values.namespace }}
+
+  labels:
+{{ include "opsboard.labels" . | indent 4 }}
+
+spec:
+
+  accessModes:
+
+    - ReadWriteOnce
+
+  storageClassName: {{ .Values.postgres.storageClass }}
+
+  resources:
+
+    requests:
+
+      storage: {{ .Values.postgres.storage }}

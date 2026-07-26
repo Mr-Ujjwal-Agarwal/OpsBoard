@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: postgres-init-sql
+
+  namespace: {{ .Values.namespace }}
+
+  labels:
+{{ include "opsboard.labels" . | indent 4 }}
+
+data:
+
+  init.sql: |
+
+{{ .Files.Get "files/init.sql" | indent 4 }}
