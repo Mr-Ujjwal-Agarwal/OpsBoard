@@ -21,7 +21,9 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - opsboard-network
+      opsboard-network:
+        aliases:
+          - opsboard-postgres
 
   backend:
     build:
@@ -40,7 +42,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-opsboard}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opsboard}
       POSTGRES_DB: ${POSTGRES_DB:-opsboard}
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: opsboard-postgres
       POSTGRES_PORT: 5432
       SEED_DATABASE: ${SEED_DATABASE:-true}
     ports:
@@ -54,8 +56,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
     networks:
-      - opsboard-network
+      opsboard-network:
+        aliases:
+          - opsboard-backend
 
   frontend:
     build:
