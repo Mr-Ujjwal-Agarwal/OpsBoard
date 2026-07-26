@@ -4,6 +4,7 @@ kind: ClusterConfig
 metadata:
   name: opsboard-cluster
   region: ap-south-1
+  version: "1.34"
 
 iam:
   withOIDC: true
@@ -11,8 +12,25 @@ iam:
 managedNodeGroups:
   - name: opsboard-workers
     instanceType: t3.small
+
     desiredCapacity: 1
     minSize: 1
     maxSize: 2
+
+    amiFamily: AmazonLinux2023
+
+    volumeType: gp3
     volumeSize: 20
+
     privateNetworking: false
+
+    ssh:
+      allow: false
+
+    labels:
+      role: worker
+      project: opsboard
+
+    tags:
+      Project: OpsBoard
+      Environment: Dev
