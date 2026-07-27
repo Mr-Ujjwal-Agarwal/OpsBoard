@@ -4,31 +4,36 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'helm/opsboard/values.yaml'
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
 
   BACKEND_REPOSITORY: opsboard-backend
   FRONTEND_REPOSITORY: opsboard-frontend
 
 jobs:
   deploy:
-    name: Build, Push & Deploy
+    name: Build, Push & Update GitOps
     runs-on: ubuntu-latest
 
     steps:
+
       ########################################################
-      # Checkout
+      # Checkout Repository
       ########################################################
 
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       ########################################################
       # Configure AWS Credentials (OIDC)
@@ -45,7 +50,6 @@ jobs:
       ########################################################
 
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       ########################################################
@@ -54,9 +58,8 @@ jobs:
 
       - name: Generate Image Tag
         id: vars
-        shell: bash
         run: |
-          echo "TAG=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
       ########################################################
       # Build Backend
@@ -89,50 +92,44 @@ jobs:
             $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_REPOSITORY:${{ steps.vars.outputs.TAG }}
 
       ########################################################
-      # Install kubectl
+      # Install yq
       ########################################################
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-
-      ########################################################
-      # Install Helm
-      ########################################################
-
-      - name: Install Helm
-        uses: azure/setup-helm@v4
-
-      ########################################################
-      # Configure kubeconfig
-      ########################################################
-
-      - name: Configure kubeconfig
+      - name: Install yq
         run: |
-          aws eks update-kubeconfig \
-            --region $AWS_REGION \
-            --name $EKS_CLUSTER_NAME
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
 
       ########################################################
-      # Deploy using Helm
+      # Update Helm values.yaml
       ########################################################
 
-      - name: Deploy to EKS
+      - name: Update Helm Image Tags
+        env:
+          TAG: ${{ steps.vars.outputs.TAG }}
         run: |
-          helm upgrade --install opsboard ./helm/opsboard \
-            --namespace opsboard \
-            --create-namespace \
-            --set images.backend.repository=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$BACKEND_REPOSITORY \
-            --set images.backend.tag=${{ steps.vars.outputs.TAG }} \
-            --set images.frontend.repository=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_REPOSITORY \
-            --set images.frontend.tag=${{ steps.vars.outputs.TAG }}
+          yq -i '.images.backend.tag = strenv(TAG)' helm/opsboard/values.yaml
+          yq -i '.images.frontend.tag = strenv(TAG)' helm/opsboard/values.yaml
+
+          echo "===== Updated values.yaml ====="
+          cat helm/opsboard/values.yaml
 
       ########################################################
-      # Verify Deployment
+      # Commit Updated values.yaml
       ########################################################
 
-      - name: Verify Deployment
+      - name: Commit Updated Helm Values
         run: |
-          kubectl get pods -n opsboard
-          kubectl get svc -n opsboard
-          kubectl rollout status deployment/opsboard-backend -n opsboard --timeout=180s
-          kubectl rollout status deployment/opsboard-frontend -n opsboard --timeout=180s
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add helm/opsboard/values.yaml
+
+          if git diff --cached --quiet; then
+            echo "No changes detected."
+            exit 0
+          fi
+
+          git commit -m "ci: update image tags to ${{ steps.vars.outputs.TAG }}"
+          git push origin main
