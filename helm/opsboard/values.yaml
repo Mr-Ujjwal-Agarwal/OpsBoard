@@ -3,154 +3,88 @@
 #################################################
 
 namespace: opsboard
-
 #################################################
 # Images
 #################################################
-
 images:
-
   backend:
-
     repository: 572396339705.dkr.ecr.ap-south-1.amazonaws.com/opsboard-backend
-
-    tag: v1.0.0
-
+    tag: 9b7e8f1
     pullPolicy: Always
-
   frontend:
-
     repository: 572396339705.dkr.ecr.ap-south-1.amazonaws.com/opsboard-frontend
-
-    tag: v1.0.0
-
+    tag: 9b7e8f1
     pullPolicy: Always
-
   postgres:
-
     repository: postgres
-
     tag: "16"
-
     pullPolicy: IfNotPresent
 #################################################
 # Replica Count
 #################################################
 
 replicaCount:
-
   backend: 1
-
   frontend: 1
-
   postgres: 1
-
 #################################################
 # PostgreSQL
 #################################################
-
 postgres:
-
   database: opsboard
-
   username: opsboard
-
   password: opsboard
-
   host: opsboard-postgres
-
   port: 5432
-
   storage: 5Gi
-
   storageClass: gp2
-
 #################################################
 # Backend
 #################################################
-
 backend:
-
   serviceName: opsboard-backend
-
   containerPort: 8000
-
   servicePort: 8000
-
 #################################################
 # Frontend
 #################################################
-
 frontend:
-
   serviceName: opsboard-frontend
-
   containerPort: 8080
-
   servicePort: 8080
-
 #################################################
 # LoadBalancer
 #################################################
-
 loadBalancer:
-
   serviceName: opsboard-frontend-lb
-
   port: 80
-
   targetPort: 8080
-
 #################################################
 # Resources
 #################################################
-
 resources:
-
   backend:
-
     requests:
-
       cpu: 100m
-
       memory: 128Mi
-
     limits:
-
       cpu: 500m
-
       memory: 512Mi
-
   frontend:
-
     requests:
-
       cpu: 100m
-
       memory: 128Mi
-
     limits:
-
       cpu: 500m
-
       memory: 512Mi
-
   postgres:
-
     requests:
-
       cpu: 250m
-
       memory: 256Mi
-
     limits:
-
       cpu: "1"
-
       memory: 1Gi
-
 #################################################
 # Image Pull Secrets
 #################################################
-
 imagePullSecrets: []
