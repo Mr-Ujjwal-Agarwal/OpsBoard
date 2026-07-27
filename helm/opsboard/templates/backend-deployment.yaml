@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: {{ .Values.backend.serviceName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+{{ include "opsboard.labels" . | indent 4 }}
+
+spec:
+  replicas: {{ .Values.replicaCount.backend }}
+
+  selector:
+    matchLabels:
+      app: {{ .Values.backend.serviceName }}
+
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.backend.serviceName }}
+
+    spec:
+
+      containers:
+
+      - name: backend
+
+        image: "{{ .Values.images.backend.repository }}:{{ .Values.images.backend.tag }}"
+
+        imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
+
+        ports:
+
+        - containerPort: {{ .Values.backend.containerPort }}
+
+        env:
+
+        - name: APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: APP_NAME
+
+        - name: APP_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: APP_VERSION
+
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: ENVIRONMENT
+
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: DEBUG
+
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: LOG_LEVEL
+
+        - name: API_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: API_PREFIX
+
+        - name: CORS_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: CORS_ORIGINS
+
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: POSTGRES_HOST
+
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: POSTGRES_PORT
+
+        - name: SEED_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: SEED_DATABASE
+
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: opsboard-postgres-secret
+              key: POSTGRES_DB
+
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: opsboard-postgres-secret
+              key: POSTGRES_USER
+
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: opsboard-postgres-secret
+              key: POSTGRES_PASSWORD
+
+        readinessProbe:
+
+          httpGet:
+            path: /api/live
+            port: 8000
+
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+        livenessProbe:
+
+          httpGet:
+            path: /api/live
+            port: 8000
+
+          initialDelaySeconds: 20
+          periodSeconds: 10
+
+        resources:
+{{ toYaml .Values.resources.backend | indent 10 }}

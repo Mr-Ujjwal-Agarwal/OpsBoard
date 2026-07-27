@@ -158,6 +158,44 @@ spec:
 
       storage: 5Gi
 ---
+# Source: opsboard/templates/backend-service.yaml
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: opsboard-backend
+
+  namespace: opsboard
+
+  labels:
+    app.kubernetes.io/name: opsboard
+    
+    app.kubernetes.io/instance: opsboard
+    
+    app.kubernetes.io/version: 1.0.0
+    
+    app.kubernetes.io/managed-by: Helm
+    
+    helm.sh/chart: opsboard-1.0.0
+
+spec:
+
+  type: ClusterIP
+
+  selector:
+
+    app: opsboard-backend
+
+  ports:
+
+  - name: http
+
+    port: 8000
+
+    targetPort: 8000
+
+    protocol: TCP
+---
 # Source: opsboard/templates/postgres-service.yaml
 apiVersion: v1
 kind: Service
@@ -188,6 +226,156 @@ spec:
       targetPort: 5432
 
   type: ClusterIP
+---
+# Source: opsboard/templates/backend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: opsboard-backend
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: opsboard
+    
+    app.kubernetes.io/instance: opsboard
+    
+    app.kubernetes.io/version: 1.0.0
+    
+    app.kubernetes.io/managed-by: Helm
+    
+    helm.sh/chart: opsboard-1.0.0
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: opsboard-backend
+
+  template:
+    metadata:
+      labels:
+        app: opsboard-backend
+
+    spec:
+
+      containers:
+
+      - name: backend
+
+        image: "572396339705.dkr.ecr.ap-south-1.amazonaws.com/opsboard-backend:v1.0.0"
+
+        imagePullPolicy: Always
+
+        ports:
+
+        - containerPort: 8000
+
+        env:
+
+        - name: APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: APP_NAME
+
+        - name: APP_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: APP_VERSION
+
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: ENVIRONMENT
+
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: DEBUG
+
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: LOG_LEVEL
+
+        - name: API_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: API_PREFIX
+
+        - name: CORS_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: CORS_ORIGINS
+
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: POSTGRES_HOST
+
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: POSTGRES_PORT
+
+        - name: SEED_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: opsboard-backend-config
+              key: SEED_DATABASE
+
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: opsboard-postgres-secret
+              key: POSTGRES_DB
+
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: opsboard-postgres-secret
+              key: POSTGRES_USER
+
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: opsboard-postgres-secret
+              key: POSTGRES_PASSWORD
+
+        readinessProbe:
+
+          httpGet:
+            path: /api/live
+            port: 8000
+
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+        livenessProbe:
+
+          httpGet:
+            path: /api/live
+            port: 8000
+
+          initialDelaySeconds: 20
+          periodSeconds: 10
+
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
 ---
 # Source: opsboard/templates/postgres-deployment.yaml
 apiVersion: apps/v1
