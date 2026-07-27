@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: opsboard-postgres
+  namespace: {{ .Values.namespace }}
+
+  labels:
+{{ include "opsboard.labels" . | indent 4 }}
+
+spec:
+  replicas: {{ .Values.replicaCount.postgres }}
+
+  selector:
+    matchLabels:
+      app: opsboard-postgres
+
+  template:
+    metadata:
+      labels:
+        app: opsboard-postgres
+
+    spec:
+      containers:
+        - name: postgres
+
+          image: "{{ .Values.images.postgres.repository }}:{{ .Values.images.postgres.tag }}"
+
+          imagePullPolicy: {{ .Values.images.postgres.pullPolicy }}
+
+          ports:
+            - containerPort: 5432
+
+          envFrom:
+            - secretRef:
+                name: opsboard-postgres-secret
+
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d/init.sql
+              subPath: init.sql
+
+          resources:
+{{ toYaml .Values.resources.postgres | indent 12 }}
+
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgres.username }}
+
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgres.username }}
+
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: opsboard-postgres-pvc
+
+        - name: init-script
+          configMap:
+            name: postgres-init-sql

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: opsboard-postgres
+
+  namespace: {{ .Values.namespace }}
+
+  labels:
+{{ include "opsboard.labels" . | indent 4 }}
+
+spec:
+
+  selector:
+    app: opsboard-postgres
+
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+  type: ClusterIP
