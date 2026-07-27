@@ -88,6 +88,57 @@ data:
 
   SEED_DATABASE: "true"
 ---
+# Source: opsboard/templates/frontend-nginx-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: frontend-nginx-config
+  namespace: opsboard
+
+data:
+  nginx.conf: |
+    worker_processes auto;
+
+    events {
+      worker_connections 1024;
+    }
+
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      sendfile on;
+
+      server {
+
+        listen 8080;
+
+        location / {
+
+          root /usr/share/nginx/html;
+          index index.html;
+          try_files $uri /index.html;
+        }
+
+        location /api/ {
+
+          proxy_pass http://opsboard-backend:8000/api/;
+
+          proxy_set_header Host $host;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /healthz {
+
+          access_log off;
+
+          return 200 "healthy";
+        }
+      }
+    }
+---
 # Source: opsboard/templates/postgres-init-configmap.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -195,6 +246,55 @@ spec:
     targetPort: 8000
 
     protocol: TCP
+---
+# Source: opsboard/templates/frontend-loadbalancer.yaml
+apiVersion: v1
+kind: Service
+
+metadata:
+
+  name: opsboard-frontend-lb
+
+  namespace: opsboard
+
+spec:
+
+  type: LoadBalancer
+
+  selector:
+
+    app: opsboard-frontend
+
+  ports:
+
+  - port: 80
+
+    targetPort: 8080
+
+    protocol: TCP
+---
+# Source: opsboard/templates/frontend-service.yaml
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: opsboard-frontend
+  namespace: opsboard
+
+spec:
+
+  selector:
+    app: opsboard-frontend
+
+  ports:
+
+  - port: 8080
+
+    targetPort: 8080
+
+    protocol: TCP
+
+  type: ClusterIP
 ---
 # Source: opsboard/templates/postgres-service.yaml
 apiVersion: v1
@@ -376,6 +476,91 @@ spec:
           requests:
             cpu: 100m
             memory: 128Mi
+---
+# Source: opsboard/templates/frontend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: opsboard-frontend
+  namespace: opsboard
+
+spec:
+
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: opsboard-frontend
+
+  template:
+
+    metadata:
+
+      labels:
+        app: opsboard-frontend
+
+    spec:
+
+      containers:
+
+      - name: frontend
+
+        image: "572396339705.dkr.ecr.ap-south-1.amazonaws.com/opsboard-frontend:v1.0.0"
+
+        imagePullPolicy: Always
+
+        ports:
+
+        - containerPort: 8080
+
+        volumeMounts:
+
+        - name: nginx-config
+
+          mountPath: /etc/nginx/nginx.conf
+
+          subPath: nginx.conf
+
+        readinessProbe:
+
+          httpGet:
+
+            path: /healthz
+
+            port: 8080
+
+          initialDelaySeconds: 10
+
+          periodSeconds: 5
+
+        livenessProbe:
+
+          httpGet:
+
+            path: /healthz
+
+            port: 8080
+
+          initialDelaySeconds: 20
+
+          periodSeconds: 10
+
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+
+      volumes:
+
+      - name: nginx-config
+
+        configMap:
+
+          name: frontend-nginx-config
 ---
 # Source: opsboard/templates/postgres-deployment.yaml
 apiVersion: apps/v1

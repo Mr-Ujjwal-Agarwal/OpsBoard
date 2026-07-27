@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: {{ .Values.frontend.serviceName }}
+  namespace: {{ .Values.namespace }}
+
+spec:
+
+  replicas: {{ .Values.replicaCount.frontend }}
+
+  selector:
+    matchLabels:
+      app: {{ .Values.frontend.serviceName }}
+
+  template:
+
+    metadata:
+
+      labels:
+        app: {{ .Values.frontend.serviceName }}
+
+    spec:
+
+      containers:
+
+      - name: frontend
+
+        image: "{{ .Values.images.frontend.repository }}:{{ .Values.images.frontend.tag }}"
+
+        imagePullPolicy: {{ .Values.images.frontend.pullPolicy }}
+
+        ports:
+
+        - containerPort: {{ .Values.frontend.containerPort }}
+
+        volumeMounts:
+
+        - name: nginx-config
+
+          mountPath: /etc/nginx/nginx.conf
+
+          subPath: nginx.conf
+
+        readinessProbe:
+
+          httpGet:
+
+            path: /healthz
+
+            port: 8080
+
+          initialDelaySeconds: 10
+
+          periodSeconds: 5
+
+        livenessProbe:
+
+          httpGet:
+
+            path: /healthz
+
+            port: 8080
+
+          initialDelaySeconds: 20
+
+          periodSeconds: 10
+
+        resources:
+{{ toYaml .Values.resources.frontend | indent 10 }}
+
+      volumes:
+
+      - name: nginx-config
+
+        configMap:
+
+          name: frontend-nginx-config
