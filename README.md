@@ -1216,7 +1216,7 @@ The following screenshots illustrate the platform, infrastructure, deployment wo
 | Grafana | Operational dashboards |
 | Loki | Centralized log aggregation |
 
-> Screenshots are available in the `assets/screenshots/` directory.
+> Screenshots are available in the `screenshots/` directory.
 
 ---
 
